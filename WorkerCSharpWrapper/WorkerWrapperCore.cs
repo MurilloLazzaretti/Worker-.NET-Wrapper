@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text;
@@ -16,7 +17,7 @@ namespace WorkerCSharpWrapper
 
         private string processId;
         private bool traceOnline;
-        private TcpClient? socket;
+        private Socket? socket;
 
         public WorkerWrapperCore(string host, int port, ZapMQHandler keepAlive, ZapMQHandler safeStop)
         {
@@ -52,42 +53,63 @@ namespace WorkerCSharpWrapper
             var traceMessage = JsonConvert.DeserializeObject<TraceOnlineMessage>(message.Body.ToString()!);
             if (traceMessage?.message == "start trace")
             {
-                traceOnline = true;                
-                socket = new TcpClient();
-                socket.Connect("127.0.0.1", traceMessage.port);
-                if (!socket.Connected)
+                traceOnline = true;
+
+
+                IPEndPoint ipEndPoint = new(IPAddress.Parse("127.0.0.1"), traceMessage.port);
+                
+                socket = new(
+                        ipEndPoint.AddressFamily,
+                        SocketType.Stream,
+                        ProtocolType.Tcp);
+                try
                 {
+                    socket.Connect(ipEndPoint);
+                    if (!socket.Connected)
+                    {
+                        traceOnline = false;
+                        socket.Close();
+                        result.message = "cannot connect to the server";
+                    }
+                    else
+                    {
+                        result.message = "on";
+                    }
+                }
+                catch(Exception e)
+                {
+                    result.message = "cannot connect to the server :" + e.Message;
                     traceOnline = false;
-                    socket.Close();
-                    socket.Dispose();
-                    result.message = "cannot connect to the server";
-                }
-                else
-                {
-                    result.message = "on";
-                }
+                    socket.Shutdown(SocketShutdown.Send);
+                }                               
             }
             else
             {
                 traceOnline = false;
                 if (socket != null)
                 {
-                    socket.Close();
-                    socket.Dispose();
-                    result.message = "off";
+                    socket.Shutdown(SocketShutdown.Send);
+                    result.message = "off";                    
                 }
             }            
             processing = false;
             return result;
         }
 
-        public void Trace(string traceText)
+        public async void Trace(string traceText)
         {
             if (traceOnline && socket != null && socket.Connected)
             {
-                NetworkStream stream = socket.GetStream();
-                byte[] bytesToSend = ASCIIEncoding.ASCII.GetBytes(traceText);
-                stream.Write(bytesToSend, 0, bytesToSend.Length);
+                try
+                {
+                    var messageBytes = Encoding.UTF8.GetBytes(traceText);
+                    await socket.SendAsync(messageBytes, SocketFlags.None);
+                }
+                catch
+                {
+                    traceOnline = false;
+                    socket.Shutdown(SocketShutdown.Send);
+                }
             }
         }
     }
