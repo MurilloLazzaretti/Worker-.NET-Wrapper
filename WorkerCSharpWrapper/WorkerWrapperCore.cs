@@ -95,6 +95,16 @@ namespace WorkerCSharpWrapper
             return result;
         }
 
+        // Encerra a conexao do worker com o ZapMQ em ordem. Chamado de dentro do
+        // handler de safe stop nao adianta: a mensagem so e confirmada ao servidor
+        // depois que o handler retorna. Chame de outra thread, antes de encerrar
+        // o processo; a chamada espera essa confirmacao.
+        public void Stop()
+        {
+            traceOnline = false;
+            zapMQ.StopThreads();
+        }
+
         public async void Trace(string traceText)
         {
             Socket? current = socket;
