@@ -1,9 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Net;
-using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text;
-using System.Text.Json.Serialization;
 using Newtonsoft.Json;
 using ZapMQ;
 
@@ -22,8 +20,9 @@ namespace WorkerCSharpWrapper
         public WorkerWrapperCore(string host, int port, ZapMQHandler keepAlive, ZapMQHandler safeStop)
         {
             traceOnline = false;
-            zapMQ = new ZapMQWrapper(host, port);            
-            processId = Environment.ProcessId.ToString();
+            zapMQ = new ZapMQWrapper(host, port);
+            // Environment.ProcessId so existe a partir do .NET 5.
+            processId = Process.GetCurrentProcess().Id.ToString();
             keepAliveHandler = keepAlive;
             safeStopHandler = safeStop;
             BindKeepAliveQueue();
@@ -98,17 +97,23 @@ namespace WorkerCSharpWrapper
 
         public async void Trace(string traceText)
         {
-            if (traceOnline && socket != null && socket.Connected)
+            Socket? current = socket;
+            if (traceOnline && current != null && current.Connected)
             {
                 try
                 {
                     var messageBytes = Encoding.UTF8.GetBytes(traceText);
-                    await socket.SendAsync(messageBytes, SocketFlags.None);
+                    // A sobrecarga SendAsync(byte[], SocketFlags) so existe no
+                    // .NET Core. O padrao APM abaixo compila nos dois targets.
+                    await Task.Factory.FromAsync(
+                        (callback, state) => current.BeginSend(messageBytes, 0, messageBytes.Length, SocketFlags.None, callback, state),
+                        current.EndSend,
+                        null);
                 }
                 catch
                 {
                     traceOnline = false;
-                    socket.Shutdown(SocketShutdown.Send);
+                    current.Shutdown(SocketShutdown.Send);
                 }
             }
         }
