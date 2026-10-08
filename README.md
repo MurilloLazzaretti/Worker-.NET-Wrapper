@@ -71,7 +71,7 @@ public object? SafeStopeHandler(ZapJSONMessage message, out bool processing)
 
 💎 _Trace App_
 
-The class WorkerWrapperCore has a trace method, and when it`s enabled the online trace from the Worker managment all the messages will show there. Keep this in mind and in your logical methods implement this trace for example:
+The class WorkerWrapperCore has a trace method. What you write with it can be followed live, from any machine, in the web panel of [`ZapMQ`](https://github.com/MurilloLazzaretti/ZapMQ) 2.2 (Worker Control, menu of the process, Trace). The text travels through ZapMQ, and only while somebody is watching: with nobody watching, `Trace` does nothing and costs nothing. If your app writes faster than it can be sent, the oldest lines are dropped and the panel says how many. The online trace of Management Studio 1.x keeps working as before. Keep this in mind and in your logical methods implement this trace for example:
 
 ```cs
 public object KeepAliveHandler(ZapJSONMessage message, out bool processing) 

@@ -7,6 +7,11 @@
     <!-- Em net48 o LangVersion cai para C# 7.3 por padrao, o que quebra o
          construtor primario de TraceOnlineMessage e o new() target-typed. -->
     <LangVersion>latest</LangVersion>
+    <!-- A versao do assembly nao muda: quem ja foi compilado com a DLL anterior
+         continua carregando esta. A do arquivo diz qual e. -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
+    <InformationalVersion>2.0.0</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
